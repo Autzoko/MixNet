@@ -227,6 +227,7 @@ def hybridunet_trainer():
         current_lr = optimizer.param_groups[0]['lr']
         
         # 打印统计
+        print("Model device:", next(model.parameters()).device)
         print(f"\n  Train: loss={train_loss:.4f}, dice={train_dice:.4f}")
         print(f"  Val:   loss={val_loss:.4f}, dice={val_dice:.4f}")
         print(f"  LR: {current_lr:.2e}")
