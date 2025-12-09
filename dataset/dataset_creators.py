@@ -14,6 +14,15 @@ from dataset.augmentation.contrastive_augmentation import ContrastiveAugmentatio
 from dataset.dataset.ultrasound_segmentation import UltrasoundSegmentationDataset
 from dataset.dataset.ultrasound_contrastive import UltrasoundContrastiveDataset
 
+
+def segmentation_collate_fn(batch: List[Dict[str, Any]]) -> Dict[str, Any]:
+    valid_batch = [sample for sample in batch if sample['mask'] is not None]
+
+    if len(valid_batch) == 0:
+        raise ValueError("Entire batch has no valid masks. Please filter dataset to only include samples with masks")
+    
+    return torch.utils.data.dataloader.default_collate(valid_batch)
+
 def create_segmentation_dataloaders(
         train_meta_path: str,
         val_meta_path: str,

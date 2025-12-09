@@ -73,8 +73,8 @@ def validate_one_epoch(
         images = batch['image'].to(device)
         masks = batch['mask']
 
-        if masks is None or (isinstance(masks, torch.Tensor) and masks[0] is None):
-            continue
+        # if masks is None or (isinstance(masks, torch.Tensor) and masks[0] is None):
+        #     continue
         masks = masks.to(device)
 
         logits, aux = model(images)
