@@ -13,20 +13,34 @@ class UltrasoundSample:
     domain: Optional[str] = None
 
 def load_ultrasound_metadata(json_path: str) -> List[UltrasoundSample]:
-    json_path = Path(json_path)
+    json_dir = Path(json_path)
 
-    if not json_path.exists():
-        raise FileNotFoundError(f"Metadata file not found: {json_path}")
+    if not json_dir.exists():
+        raise FileNotFoundError(f"Metadata file not found: {json_dir}")
     
-    with open(json_path, 'r') as f:
+    with open(json_dir, 'r') as f:
         data = json.load(f)
+
+    data_root = json_dir.parent
 
     samples = []
     for item in data:
+        image_path = item.get('image_path')
+        if image_path:
+            img_path = Path(image_path)
+            if not img_path.is_absolute():
+                image_path = str(data_root / image_path)
+
+        mask_path = item.get('mask_path', None)
+        if mask_path:
+            msk_path = Path(mask_path)
+            if not msk_path.is_absolute():
+                mask_path = str(data_root / mask_path)
+
         sample = UltrasoundSample(
             id=item.get('id'),
-            image_path=item.get('image_path'),
-            mask_path=item.get('mask_path', None),
+            image_path=image_path,
+            mask_path=mask_path,
             label=item.get('label', None),
             domain=item.get('domain', None)
         )
