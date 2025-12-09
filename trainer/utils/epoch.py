@@ -70,8 +70,12 @@ def validate_one_epoch(
     pbar = tqdm(dataloader, desc=f"Epoch {epoch} [Val]")
 
     for batch in pbar:
-        images = batch['images'].to(device)
-        masks = batch['mask'].to(device)
+        images = batch['image'].to(device)
+        masks = batch['mask']
+
+        if masks is None or (isinstance(masks, torch.Tensor) and masks[0] is None):
+            continue
+        masks = masks.to(device)
 
         logits, aux = model(images)
 
