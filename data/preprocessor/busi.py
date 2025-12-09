@@ -281,11 +281,16 @@ def preprocess_and_save(
             np.save(img_save_path, img_np)
             
             # 加载并保存 mask（如果存在）
-            mask_save_path = None
             if sample['mask_path'] is not None:
+                # 有 mask 的样本：加载真实 mask
                 mask_np = load_and_convert_mask(sample['mask_path'])
-                mask_save_path = masks_dir / f"{sample_id}_mask.npy"
-                np.save(mask_save_path, mask_np)
+            else:
+                # 没有 mask 的样本（normal）：生成全黑 mask
+                mask_np = np.zeros_like(img_np, dtype=np.float32)
+            
+            # 保存 mask（现在所有样本都有 mask）
+            mask_save_path = masks_dir / f"{sample_id}_mask.npy"
+            np.save(mask_save_path, mask_np)
             
             # 构造 metadata 条目
             meta_entry = {
@@ -357,18 +362,7 @@ def quick_test(output_root: str, image_size: Tuple[int, int] = (256, 256)) -> No
         with open(train_meta_path, 'r') as f:
             metadata_raw = json.load(f)
         
-        # 将相对路径转换为绝对路径
-        for item in metadata_raw:
-            item['image_path'] = str(output_root / item['image_path'])
-            if item['mask_path']:
-                item['mask_path'] = str(output_root / item['mask_path'])
-        
-        # 保存临时文件
-        temp_meta_path = output_root / 'temp_test_meta.json'
-        with open(temp_meta_path, 'w') as f:
-            json.dump(metadata_raw, f, indent=2)
-        
-        samples = load_ultrasound_metadata(str(temp_meta_path))
+        samples = load_ultrasound_metadata(str(train_meta_path))
         print(f"\n✅ Loaded {len(samples)} samples from metadata")
         
         # 创建 Dataset
@@ -411,7 +405,7 @@ def quick_test(output_root: str, image_size: Tuple[int, int] = (256, 256)) -> No
             print(f"  Mask unique values: {unique_mask_values.tolist()}")
         
         # 清理临时文件
-        temp_meta_path.unlink()
+        # temp_meta_path.unlink()
         
         print("\n✅ DataLoader compatibility test passed!")
         
