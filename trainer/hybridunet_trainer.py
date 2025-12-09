@@ -142,16 +142,6 @@ def hybridunet_trainer():
         augment_train=True,  # 训练集启用增强
     )
 
-    import time
-    from itertools import islice
-
-    print("\n[DEBUG] Sanity check: DataLoader only (no model)")
-    start = time.time()
-    for i, batch in enumerate(islice(train_loader, 20)):
-        # 这里什么都不要做，pass 就行
-        pass
-    dt = time.time() - start
-    print(f"[DEBUG] Avg DataLoader time per batch: {dt / 20:.3f} s")
     
     print(f"  Train batches: {len(train_loader)}")
     print(f"  Val batches: {len(val_loader)}")
@@ -177,6 +167,8 @@ def hybridunet_trainer():
         decoder_kwargs=None,
     )
     model = model.to(device)
+
+    print("Model device:", next(model.parameters()).device)
     
     # 打印模型信息
     model.print_model_info()
@@ -238,7 +230,6 @@ def hybridunet_trainer():
         current_lr = optimizer.param_groups[0]['lr']
         
         # 打印统计
-        print("Model device:", next(model.parameters()).device)
         print(f"\n  Train: loss={train_loss:.4f}, dice={train_dice:.4f}")
         print(f"  Val:   loss={val_loss:.4f}, dice={val_dice:.4f}")
         print(f"  LR: {current_lr:.2e}")
