@@ -141,6 +141,17 @@ def hybridunet_trainer():
         num_workers=args.num_workers,
         augment_train=True,  # 训练集启用增强
     )
+
+    import time
+    from itertools import islice
+
+    print("\n[DEBUG] Sanity check: DataLoader only (no model)")
+    start = time.time()
+    for i, batch in enumerate(islice(train_loader, 20)):
+        # 这里什么都不要做，pass 就行
+        pass
+    dt = time.time() - start
+    print(f"[DEBUG] Avg DataLoader time per batch: {dt / 20:.3f} s")
     
     print(f"  Train batches: {len(train_loader)}")
     print(f"  Val batches: {len(val_loader)}")
