@@ -98,7 +98,7 @@ class OptimizedMambaBlock(nn.Module):
                     dt_init_floor=1e-4,
                     conv_bias=True,
                     bias=False,
-                    use_fast_path=True
+                    use_fast_path=False
                 )
         else:
             self.fallback_conv = nn.Sequential(
