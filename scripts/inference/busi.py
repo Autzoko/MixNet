@@ -17,9 +17,6 @@ from tqdm import tqdm
 from dataset.dataset_creators import create_segmentation_dataloaders
 from dataset.meta.UltrasoundSample import load_ultrasound_metadata
 
-# Import visualization utils
-import sys
-sys.path.insert(0, str(Path(__file__).parent.parent))
 from scripts.inference.vis_util import visualize_segmentation_case
 
 
