@@ -32,12 +32,10 @@ class HybridUNet(nn.Module):
         
         try:
             from model.pipeline.encoder.mixed_encoder import HybridEncoder
-            from model.pipeline.encoder.plain_encoder import PlainCNNEncoder
         except ImportError:
             raise ImportError("Could not import HybridEncoder. Please ensure the model.pipeline.encoder.mixed_encoder module is available.")
         
-        #self.encoder = HybridEncoder(**encoder_config)
-        self.encoder = PlainCNNEncoder(in_ch=in_ch, base_ch=base_ch)
+        self.encoder = HybridEncoder(**encoder_config)
         enc_channels = (base_ch, base_ch * 2, base_ch * 4)
 
         decoder_config = {
