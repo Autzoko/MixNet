@@ -7,6 +7,7 @@ try:
     MAMBA1_AVAIL = True
 except ImportError:
     print('Warning: mamba1 not installed.')
+    print(ImportError.msg)
     MAMBA1_AVAIL = False
 
 try:
@@ -14,6 +15,7 @@ try:
     MAMBA2_AVAIL = True
 except ImportError:
     print('Warning: mamba2 not installed.')
+    print(ImportError.msg)
     MAMBA2_AVAIL = False
 
 
