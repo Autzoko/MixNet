@@ -20,7 +20,7 @@ except ImportError as e:
 
 
 class OptimizedMambaBlock(nn.Module):
-    def __init__(self, dim, state_dim=16, use_mamba=False, mamba_version='auto', verbose=False):
+    def __init__(self, dim, state_dim=16, use_mamba=True, mamba_version='auto', verbose=False):
         super().__init__()
         self.dim = dim
         self.mamba_version = mamba_version
@@ -77,18 +77,18 @@ class OptimizedMambaBlock(nn.Module):
             if self.mamba_version == "mamba2":
                 self.mamba = Mamba2(
                     d_model=dim,
-                    d_state=128,
-                    d_conv=4,
+                    d_state=64,
+                    d_conv=3,
                     expand=2,
-                    headdim=64,
-                    chunk_size=256,
+                    headdim=32 if dim <= 64 else 64,
+                    chunk_size=128,
                     use_mem_eff_path=True
                 )
             elif self.mamba_version == "mamba1":
                 self.mamba = Mamba1(
                     d_model=dim,
-                    d_state=state_dim,
-                    d_conv=4,
+                    d_state=min(state_dim, 32),
+                    d_conv=3,
                     expand=2,
                     dt_rank="auto",
                     dt_min=0.001,
