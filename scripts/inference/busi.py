@@ -1,18 +1,8 @@
-"""
-BUSI Inference Script - Simplified Version
+import sys
+from pathlib import Path
 
-使用已有的 dataset_creators 和 visualization_utils 进行推理。
-
-Usage:
-    python scripts/infer_busi.py \
-        --data_root data/processed/BUSI \
-        --split val \
-        --ckpt_path outputs_busi_hybrid_unet/best_model.pth \
-        --image_size 256 \
-        --batch_size 4 \
-        --save_dir outputs_busi_infer
-"""
-
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
 import os
 import argparse
 from pathlib import Path
