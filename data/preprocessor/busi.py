@@ -10,9 +10,8 @@ from PIL import Image
 from tqdm import tqdm
 
 
-# 标签编码
+# 标签编码 - 🔥 移除 normal
 LABEL_MAP = {
-    'normal': 0,
     'benign': 1,
     'malignant': 2,
 }
@@ -22,6 +21,8 @@ def collect_busi_samples(busi_root: str) -> List[Dict]:
     """
     遍历 BUSI 根目录，收集所有样本信息
     
+    🔥 修改：跳过 normal 类型样本，只收集 benign 和 malignant
+    
     Args:
         busi_root: BUSI 数据集根目录
     
@@ -29,8 +30,8 @@ def collect_busi_samples(busi_root: str) -> List[Dict]:
         样本字典列表，每个样本包含:
             - id: 唯一标识符
             - img_path: 原始图像路径
-            - mask_path: 原始 mask 路径（或 None）
-            - label_name: 类别名称 ('benign', 'malignant', 'normal')
+            - mask_path: 原始 mask 路径
+            - label_name: 类别名称 ('benign', 'malignant')
     """
     busi_root = Path(busi_root)
     if not busi_root.exists():
@@ -38,8 +39,8 @@ def collect_busi_samples(busi_root: str) -> List[Dict]:
     
     samples = []
     
-    # 处理各个类别目录
-    for category in ['benign', 'malignant', 'normal']:
+    # 🔥 只处理 benign 和 malignant，跳过 normal
+    for category in ['benign', 'malignant']:
         category_dir = busi_root / category
         
         if not category_dir.exists():
@@ -48,17 +49,14 @@ def collect_busi_samples(busi_root: str) -> List[Dict]:
         
         print(f"\nProcessing {category} category...")
         
-        if category in ['benign', 'malignant']:
-            # 有 mask 的类别：需要配对 image 和 mask
-            samples_in_category = _collect_paired_samples(category_dir, category)
-        else:
-            # normal 类别：只有图像，没有 mask
-            samples_in_category = _collect_unpaired_samples(category_dir, category)
+        # 收集配对样本（有 mask）
+        samples_in_category = _collect_paired_samples(category_dir, category)
         
         samples.extend(samples_in_category)
         print(f"  Collected {len(samples_in_category)} {category} samples")
     
     print(f"\nTotal collected samples: {len(samples)}")
+    print(f"🔥 Normal samples excluded from dataset")
     return samples
 
 
@@ -101,36 +99,6 @@ def _collect_paired_samples(category_dir: Path, category: str) -> List[Dict]:
         })
         
         sample_idx += 1
-    
-    return samples
-
-
-def _collect_unpaired_samples(category_dir: Path, category: str) -> List[Dict]:
-    """
-    收集无 mask 的样本（normal）
-    
-    Args:
-        category_dir: 类别目录路径
-        category: 类别名称
-    
-    Returns:
-        样本列表
-    """
-    samples = []
-    
-    # 获取所有 PNG 文件
-    image_files = sorted(category_dir.glob('*.png'))
-    
-    for idx, img_path in enumerate(image_files, start=1):
-        # 生成唯一 ID
-        sample_id = f"BUSI_{category}_{idx:06d}"
-        
-        samples.append({
-            'id': sample_id,
-            'img_path': str(img_path),
-            'mask_path': None,
-            'label_name': category,
-        })
     
     return samples
 
@@ -233,6 +201,8 @@ def preprocess_and_save(
     """
     预处理样本并保存为 npy + metadata JSON
     
+    🔥 修改：所有样本都有 mask（normal 已被排除）
+    
     Args:
         samples: 收集到的样本列表
         output_root: 输出根目录
@@ -280,15 +250,8 @@ def preprocess_and_save(
             img_save_path = images_dir / f"{sample_id}.npy"
             np.save(img_save_path, img_np)
             
-            # 加载并保存 mask（如果存在）
-            if sample['mask_path'] is not None:
-                # 有 mask 的样本：加载真实 mask
-                mask_np = load_and_convert_mask(sample['mask_path'])
-            else:
-                # 没有 mask 的样本（normal）：生成全黑 mask
-                mask_np = np.zeros_like(img_np, dtype=np.float32)
-            
-            # 保存 mask（现在所有样本都有 mask）
+            # 🔥 所有样本都有 mask（因为 normal 已被排除）
+            mask_np = load_and_convert_mask(sample['mask_path'])
             mask_save_path = masks_dir / f"{sample_id}_mask.npy"
             np.save(mask_save_path, mask_np)
             
@@ -296,7 +259,7 @@ def preprocess_and_save(
             meta_entry = {
                 'id': sample_id,
                 'image_path': f"images/{sample_id}.npy",
-                'mask_path': f"masks/{sample_id}_mask.npy" if mask_save_path else None,
+                'mask_path': f"masks/{sample_id}_mask.npy",
                 'label': LABEL_MAP[sample['label_name']],
                 'domain': 'BUSI',
             }
@@ -314,6 +277,7 @@ def preprocess_and_save(
         print(f"  Samples: {len(metadata)}")
     
     print(f"\n✅ Preprocessing complete!")
+    print(f"🔥 Only benign and malignant samples included")
 
 
 def quick_test(output_root: str, image_size: Tuple[int, int] = (256, 256)) -> None:
@@ -358,10 +322,6 @@ def quick_test(output_root: str, image_size: Tuple[int, int] = (256, 256)) -> No
         print("\n✅ Successfully imported DataLoader components")
         
         # 加载 metadata
-        # 需要使用绝对路径
-        with open(train_meta_path, 'r') as f:
-            metadata_raw = json.load(f)
-        
         samples = load_ultrasound_metadata(str(train_meta_path))
         print(f"\n✅ Loaded {len(samples)} samples from metadata")
         
@@ -388,10 +348,7 @@ def quick_test(output_root: str, image_size: Tuple[int, int] = (256, 256)) -> No
         
         print(f"\n✅ Successfully loaded one batch:")
         print(f"  images: {batch['image'].shape}")
-        if batch['mask'] is not None and batch['mask'][0] is not None:
-            print(f"  masks: {batch['mask'].shape}")
-        else:
-            print(f"  masks: None (normal samples)")
+        print(f"  masks: {batch['mask'].shape}")
         print(f"  labels: {batch['label']}")
         print(f"  domains: {batch['domain']}")
         
@@ -400,12 +357,13 @@ def quick_test(output_root: str, image_size: Tuple[int, int] = (256, 256)) -> No
         print(f"  Image range: [{batch['image'].min():.3f}, {batch['image'].max():.3f}]")
         print(f"  Image mean: {batch['image'].mean():.3f}")
         
-        if batch['mask'] is not None and batch['mask'][0] is not None:
-            unique_mask_values = torch.unique(batch['mask'])
-            print(f"  Mask unique values: {unique_mask_values.tolist()}")
+        unique_mask_values = torch.unique(batch['mask'])
+        print(f"  Mask unique values: {unique_mask_values.tolist()}")
         
-        # 清理临时文件
-        # temp_meta_path.unlink()
+        # 🔥 验证没有 normal 标签
+        unique_labels = torch.unique(batch['label'])
+        print(f"  Label unique values: {unique_labels.tolist()}")
+        print(f"  🔥 Expected labels: 1 (benign), 2 (malignant)")
         
         print("\n✅ DataLoader compatibility test passed!")
         
@@ -422,6 +380,17 @@ def quick_test(output_root: str, image_size: Tuple[int, int] = (256, 256)) -> No
         print(f"\nMetadata validation:")
         print(f"  Total entries: {len(metadata)}")
         
+        # 统计标签分布
+        label_counts = {}
+        for item in metadata:
+            label = item['label']
+            label_counts[label] = label_counts.get(label, 0) + 1
+        
+        print(f"\nLabel distribution:")
+        for label, count in sorted(label_counts.items()):
+            label_name = 'benign' if label == 1 else 'malignant'
+            print(f"  {label_name} (label={label}): {count} samples")
+        
         # 检查前几个样本
         for i, item in enumerate(metadata[:3]):
             print(f"\nSample {i+1}:")
@@ -430,16 +399,14 @@ def quick_test(output_root: str, image_size: Tuple[int, int] = (256, 256)) -> No
             img_path = output_root / item['image_path']
             print(f"  Image exists: {img_path.exists()}")
             
-            if item['mask_path']:
-                mask_path = output_root / item['mask_path']
-                print(f"  Mask exists: {mask_path.exists()}")
-            else:
-                print(f"  Mask: None (expected for normal samples)")
+            mask_path = output_root / item['mask_path']
+            print(f"  Mask exists: {mask_path.exists()}")
             
             print(f"  Label: {item['label']}")
             print(f"  Domain: {item['domain']}")
         
         print("\n✅ Basic file validation passed!")
+        print("🔥 All samples have masks (normal excluded)")
     
     except Exception as e:
         print(f"\n❌ Test failed: {e}")
@@ -449,7 +416,7 @@ def quick_test(output_root: str, image_size: Tuple[int, int] = (256, 256)) -> No
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Preprocess BUSI dataset to unified format"
+        description="Preprocess BUSI dataset (exclude normal samples)"
     )
     
     parser.add_argument(
@@ -517,6 +484,7 @@ def main():
     # 开始预处理
     print("=" * 60)
     print("BUSI Dataset Preprocessing")
+    print("🔥 Normal samples will be excluded")
     print("=" * 60)
     print(f"\nInput: {args.busi_root}")
     print(f"Output: {args.output_root}")
@@ -524,7 +492,7 @@ def main():
     print(f"Test ratio: {args.test_ratio}")
     print(f"Random seed: {args.seed}")
     
-    # 收集样本
+    # 收集样本（排除 normal）
     samples = collect_busi_samples(args.busi_root)
     
     if len(samples) == 0:
@@ -546,6 +514,7 @@ def main():
     
     print("\n" + "=" * 60)
     print("All done! 🎉")
+    print("🔥 Dataset contains only benign and malignant samples")
     print("=" * 60)
 
 
