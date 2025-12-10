@@ -15,7 +15,7 @@ class SoftDiceLoss(nn.Module):
         target_flat = target.view(B, -1)
 
         intersection = (pred_flat * target_flat).sum(dim=1)
-        union = pred_flat.sum(dim=1) + target_flat,sum(dim=1)
+        union = pred_flat.sum(dim=1) + target_flat.sum(dim=1)
 
         dice = (2.0 * intersection + self.smth) / (union + self.smth + self.eps)
 
