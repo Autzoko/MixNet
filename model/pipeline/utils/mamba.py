@@ -98,14 +98,14 @@ class OptimizedMambaBlock(nn.Module):
                     bias=False,
                     use_fast_path=True
                 )
-            else:
-                self.fallback_conv = nn.Sequential(
-                    nn.Conv2d(dim, dim, kernel_size=3, padding=1, groups=dim, bias=False),
-                    nn.BatchNorm2d(dim),
-                    nn.GELU(),
-                    nn.Conv2d(dim, dim, kernel_size=1, bias=False),
-                    nn.BatchNorm2d(dim),
-                )
+        else:
+            self.fallback_conv = nn.Sequential(
+                nn.Conv2d(dim, dim, kernel_size=3, padding=1, groups=dim, bias=False),
+                nn.BatchNorm2d(dim),
+                nn.GELU(),
+                nn.Conv2d(dim, dim, kernel_size=1, bias=False),
+                nn.BatchNorm2d(dim),
+            )
                     
 
         self.mlp = nn.Sequential(
