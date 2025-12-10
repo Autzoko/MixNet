@@ -8,17 +8,17 @@ import torch.nn.functional as F
 from einops import rearrange, repeat
 
 try:
-    from causal_conv1d import causal_conv1d_fn
+    from packages.causal_conv1d.causal_conv1d import causal_conv1d_fn
 except ImportError:
     causal_conv1d_fn = None
 
 try:
-    from mamba_ssm.ops.triton.layernorm_gated import RMSNorm as RMSNormGated, LayerNorm
+    from packages.mamba.mamba_ssm.ops.triton.layernorm_gated import RMSNorm as RMSNormGated, LayerNorm
 except ImportError:
     RMSNormGated, LayerNorm = None, None
 
-from mamba_ssm.ops.triton.ssd_combined import mamba_chunk_scan_combined
-from mamba_ssm.ops.triton.ssd_combined import mamba_split_conv1d_scan_combined
+from packages.mamba.mamba_ssm.ops.triton.ssd_combined import mamba_chunk_scan_combined
+from packages.mamba.mamba_ssm.ops.triton.ssd_combined import mamba_split_conv1d_scan_combined
 
 
 class Mamba2Simple(nn.Module):

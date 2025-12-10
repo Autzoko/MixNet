@@ -18,7 +18,7 @@ except ImportError:
     RotaryEmbedding = None
 
 try:
-    from causal_conv1d import causal_conv1d_fn, causal_conv1d_update
+    from packages.causal_conv1d.causal_conv1d import causal_conv1d_fn, causal_conv1d_update
 except ImportError:
     causal_conv1d_fn, causal_conv1d_update = None, None
 

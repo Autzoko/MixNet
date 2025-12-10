@@ -2,20 +2,20 @@
 
 import torch
 import torch.nn.functional as F
-from mamba_ssm.utils.torch import custom_bwd, custom_fwd
+from packages.mamba.mamba_ssm.utils.torch import custom_bwd, custom_fwd
 
 from einops import rearrange, repeat
 
 try:
-    from causal_conv1d import causal_conv1d_fn
-    from causal_conv1d.cpp_functions import causal_conv1d_fwd_function, causal_conv1d_bwd_function, causal_conv1d_update_function
+    from packages.causal_conv1d.causal_conv1d import causal_conv1d_fn
+    from packages.causal_conv1d.causal_conv1d.cpp_functions import causal_conv1d_fwd_function, causal_conv1d_bwd_function, causal_conv1d_update_function
 except ImportError:
     causal_conv1d_fn = None
     causal_conv1d_fwd_function = None
     causal_conv1d_bwd_function = None
     causal_conv1d_update_function = None
 
-from mamba_ssm.ops.triton.layer_norm import _layer_norm_fwd
+from packages.mamba.mamba_ssm.ops.triton.layer_norm import _layer_norm_fwd
 
 import selective_scan_cuda
 
