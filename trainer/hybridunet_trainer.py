@@ -7,6 +7,8 @@ import torch
 from trainer.utils import set_seed, load_checkpoint, save_checkpoint
 from trainer.utils.epoch import train_one_epoch, validate_one_epoch
 
+from trainer.loss.ultrasam import UltraSAMLoss
+
 
 def hybridunet_trainer():
     # ==================== 参数解析 ====================
@@ -186,6 +188,8 @@ def hybridunet_trainer():
         T_max=args.epochs,
         eta_min=1e-6,
     )
+
+    criterion = UltraSAMLoss(lambda_dice=1.0, lambda_focal=20.0, lambda_iou=0.0)
     
     # ==================== 加载 checkpoint（如果有）====================
     start_epoch = 1
@@ -212,6 +216,7 @@ def hybridunet_trainer():
         train_loss, train_dice = train_one_epoch(
             model=model,
             dataloader=train_loader,
+            criterion=criterion,
             optimizer=optimizer,
             device=device,
             epoch=epoch,
@@ -221,6 +226,7 @@ def hybridunet_trainer():
         val_loss, val_dice = validate_one_epoch(
             model=model,
             dataloader=val_loader,
+            criterion=criterion,
             device=device,
             epoch=epoch,
         )
