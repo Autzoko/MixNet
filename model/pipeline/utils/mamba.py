@@ -2,6 +2,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+import sys
+from pathlib import Path
+
+project_root = Path(__file__).parent.parent.parent.parent
+sys.path.insert(0, str(project_root))
+
 try:
     from packages.mamba.mamba_ssm.modules.mamba_simple import Mamba as Mamba1
     MAMBA1_AVAIL = True
