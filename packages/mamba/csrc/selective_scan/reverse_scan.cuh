@@ -4,12 +4,17 @@
 
 #pragma once
 
-#include <cub/config.cuh>
-
-#include <cub/util_ptx.cuh>
-#include <cub/util_type.cuh>
-#include <cub/block/block_raking_layout.cuh>
-// #include <cub/detail/uninitialized_copy.cuh>
+#ifndef USE_ROCM
+    #include <cub/config.cuh>
+    
+    #include <cub/util_ptx.cuh>
+    #include <cub/util_type.cuh>
+    #include <cub/block/block_raking_layout.cuh>
+    // #include <cub/detail/uninitialized_copy.cuh>
+#else
+    #include <hipcub/hipcub.hpp>
+    namespace cub = hipcub;
+#endif
 #include "uninitialized_copy.cuh"
 
 /**
@@ -46,6 +51,7 @@ __device__ __forceinline__ T ThreadReverseScanInclusive(
         inclusive = scan_op(inclusive, input[i]);
         output[i] = inclusive;
     }
+    return inclusive; 
 }
 
 /**
@@ -89,7 +95,15 @@ struct WarpReverseScan {
     //---------------------------------------------------------------------
 
     /// Whether the logical warp size and the PTX warp size coincide
-    static constexpr bool IS_ARCH_WARP = (LOGICAL_WARP_THREADS == CUB_WARP_THREADS(0));
+
+    // In hipcub, warp_threads is defined as HIPCUB_WARP_THREADS ::rocprim::warp_size()
+    // While in cub, it's defined as a macro that takes a redundant unused argument.
+    #ifndef USE_ROCM
+        #define WARP_THREADS CUB_WARP_THREADS(0)
+    #else
+        #define WARP_THREADS HIPCUB_WARP_THREADS
+    #endif
+    static constexpr bool IS_ARCH_WARP = (LOGICAL_WARP_THREADS == WARP_THREADS);
     /// The number of warp scan steps
     static constexpr int STEPS = cub::Log2<LOGICAL_WARP_THREADS>::VALUE;
     static_assert(LOGICAL_WARP_THREADS == 1 << STEPS);
@@ -115,7 +129,7 @@ struct WarpReverseScan {
     /// Constructor
     explicit __device__ __forceinline__
     WarpReverseScan()
-        : lane_id(cub::LaneId())
+        : lane_id(threadIdx.x & 0x1f)
         , warp_id(IS_ARCH_WARP ? 0 : (lane_id / LOGICAL_WARP_THREADS))
         , member_mask(cub::WarpMask<LOGICAL_WARP_THREADS>(warp_id))
     {
@@ -318,7 +332,7 @@ struct BlockReverseScan {
             // Place thread partial into shared memory raking grid
             T *placement_ptr = BlockRakingLayout::PlacementPtr(temp_storage.raking_grid, linear_tid);
             detail::uninitialized_copy(placement_ptr, input);
-            cub::CTA_SYNC();
+            __syncthreads();
             // Reduce parallelism down to just raking threads
             if (linear_tid < RAKING_THREADS) {
                 WarpReverseScan warp_scan;
@@ -336,7 +350,7 @@ struct BlockReverseScan {
                 // Exclusive raking downsweep scan
                 ExclusiveDownsweep(scan_op, downsweep_postfix);
             }
-            cub::CTA_SYNC();
+            __syncthreads();
             // Grab thread postfix from shared memory
             exclusive_output = *placement_ptr;
 
@@ -368,7 +382,7 @@ struct BlockReverseScan {
             //     }
             // }
 
-            // cub::CTA_SYNC();
+            // __syncthreads();
 
             // // Incorporate thread block postfix into outputs
             // T block_postfix = temp_storage.block_postfix;

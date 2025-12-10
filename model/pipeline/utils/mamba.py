@@ -3,62 +3,135 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 try:
-    from packages.mamba.mamba_ssm import Mamba as MambaSSM
-    MAMBA_AVAIL = True
+    from packages.mamba.mamba_ssm import Mamba as Mamba1
+    MAMBA1_AVAIL = True
 except ImportError:
-    print('Warning: maba-ssm not installed.')
-    MAMBA_AVAIL = False
+    print('Warning: mamba1 not installed.')
+    MAMBA1_AVAIL = False
+
+try:
+    from packages.mamba.mamba_ssm import Mamba2
+    MAMBA2_AVAIL = True
+except ImportError:
+    print('Warning: mamba2 not installed.')
+    MAMBA2_AVAIL = False
 
 
 class OptimizedMambaBlock(nn.Module):
-    def __init__(self, dim, state_dim=16, use_mamba=True):
+    def __init__(self, dim, state_dim=16, use_mamba=True, mamba_version='auto', verbose=False):
         super().__init__()
         self.dim = dim
-        self.use_mamba = use_mamba and MAMBA_AVAIL
+        self.mamba_version = mamba_version
+        self.verbose = verbose
+        self.use_mamba = use_mamba
+        
+        if mamba_version == "auto":
+            if MAMBA2_AVAIL:
+                self.mamba_version = "mamba2"
+                if verbose:
+                    print(f"Mamba Version: Mamba2 (dim={dim})")
+            elif MAMBA1_AVAIL:
+                self.mamba_version = "mamba1"
+                if verbose:
+                    print(f"Mamba Version: Mamba1 (dim={dim})")
+            else:
+                self.mamba_version = "none"
+                self.use_mamba = False
+                if verbose:
+                    print(f"Mamba not used: CNN, dim={dim}")
+
+        elif mamba_version == "mamba2" and not MAMBA2_AVAIL:
+            if verbose:
+                print("Mamba2 not available")
+            if MAMBA1_AVAIL:
+                self.mamba_version = "mamba1"
+                if verbose:
+                    print("     Falling back to Mamba1")
+            else:
+                self.mamba_version = "none"
+                self.use_mamba = False
+                if verbose:
+                    print("     Falling back to CNN")
+
+        elif mamba_version == "mamba1" and not MAMBA1_AVAIL:
+            if verbose:
+                print("Mamba1 not available")
+            if MAMBA2_AVAIL:
+                self.mamba_version = "mamba2"
+                if verbose:
+                    print("     Using Mamba2")
+            else:
+                self.mamba_version = "none"
+                self.use_mamba = False
+                if verbose:
+                    print("     Falling back to CNN")
+        elif mamba_version == "none":
+            self.use_mamba = False
+
 
         self.norm = nn.LayerNorm(dim)
+
         if self.use_mamba:
-            self.mamba = MambaSSM(
-                d_model=dim,
-                d_state=state_dim,
-                d_conv=4,
-                expand=2,
-                bimamba_type='none'
-            )
-        else:
-            self.fallback_conv = nn.Sequential(
-                nn.Conv2d(dim, dim, kernel_size=3, padding=1, groups=dim),
-                nn.Conv2d(dim, dim, kernel_size=1),
-                nn.GELU()
-            )
+            if self.mamba_version == "mamba2":
+                self.mamba = Mamba2(
+                    d_model=dim,
+                    d_state=128,
+                    d_conv=4,
+                    expand=2,
+                    headdim=64,
+                    chunk_size=256,
+                    use_mem_eff_path=True
+                )
+            elif self.mamba_version == "mamba1":
+                self.mamba = Mamba1(
+                    d_model=dim,
+                    d_state=state_dim,
+                    d_conv=4,
+                    expand=2,
+                    dt_rank="auto",
+                    dt_min=0.001,
+                    dt_max=0.1,
+                    dt_init="random",
+                    dt_scale=1.0,
+                    dt_init_floor=1e-4,
+                    conv_bias=True,
+                    bias=False,
+                    use_fast_path=True
+                )
+            else:
+                self.fallback_conv = nn.Sequential(
+                    nn.Conv2d(dim, dim, kernel_size=3, padding=1, groups=dim, bias=False),
+                    nn.BatchNorm2d(dim),
+                    nn.GELU(),
+                    nn.Conv2d(dim, dim, kernel_size=1, bias=False),
+                    nn.BatchNorm2d(dim),
+                )
+                    
 
         self.mlp = nn.Sequential(
             nn.Linear(dim, dim * 4),
             nn.GELU(),
-            nn.Linear(dim * 4, dim)
+            nn.Linear(dim * 4, dim),
         )
-        self.norm_mlp = nn.LayerNorm(dim)
+        self.mlp_norm = nn.LayerNorm(dim)
 
 
-    def forward(self, x):
-        """
-        x: (B, C, H, W)
-        """
+    def forward(self, x: torch.Tensor):
         B, C, H, W = x.shape
-        identity = x
 
         if self.use_mamba:
             x_flat = x.flatten(2).transpose(1, 2)
             x_flat = x_flat + self.mamba(self.norm(x_flat))
-            x_flat = x_flat + self.mlp(self.norm_mlp(x_flat))
+            x_flat = x_flat + self.mlp(self.mlp_norm(x_flat))
             x = x_flat.transpose(1, 2).view(B, C, H, W)
         else:
             x = x + self.fallback_conv(x)
             x_flat = x.flatten(2).transpose(1, 2)
-            x_flat = x_flat + self.mlp(self.norm_mlp(x_flat))
-            x = x_flat.transpose(1, 2).view(B, C, H, W)
+            x_flat = x_flat + self.mlp(self.mlp_norm(x_flat))
+            x = x_flat.tranpose(1, 2).view(B, C, H, W)
 
         return x
+            
 
 
 
