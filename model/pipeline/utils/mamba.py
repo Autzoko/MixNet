@@ -23,7 +23,7 @@ class OptimizedMambaBlock(nn.Module):
                 d_state=state_dim,
                 d_conv=4,
                 expand=2,
-                bimamba_type=None
+                bimamba_type='none'
             )
         else:
             self.fallback_conv = nn.Sequential(
