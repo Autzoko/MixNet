@@ -3,14 +3,14 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 try:
-    from packages.mamba.mamba_ssm import Mamba as Mamba1
+    from packages.mamba.mamba_ssm.modules.mamba_simple import Mamba as Mamba1
     MAMBA1_AVAIL = True
 except ImportError:
     print('Warning: mamba1 not installed.')
     MAMBA1_AVAIL = False
 
 try:
-    from packages.mamba.mamba_ssm import Mamba2
+    from packages.mamba.mamba_ssm.modules.mamba2 import Mamba2
     MAMBA2_AVAIL = True
 except ImportError:
     print('Warning: mamba2 not installed.')
@@ -128,7 +128,7 @@ class OptimizedMambaBlock(nn.Module):
             x = x + self.fallback_conv(x)
             x_flat = x.flatten(2).transpose(1, 2)
             x_flat = x_flat + self.mlp(self.mlp_norm(x_flat))
-            x = x_flat.tranpose(1, 2).view(B, C, H, W)
+            x = x_flat.transpose(1, 2).view(B, C, H, W)
 
         return x
             
