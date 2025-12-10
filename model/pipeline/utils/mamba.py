@@ -11,17 +11,17 @@ sys.path.insert(0, str(project_root))
 try:
     from packages.mamba.mamba_ssm.modules.mamba_simple import Mamba as Mamba1
     MAMBA1_AVAIL = True
-except ImportError:
+except ImportError as e:
     print('Warning: mamba1 not installed.')
-    print(ImportError.msg)
+    print(f"{e}")
     MAMBA1_AVAIL = False
 
 try:
     from packages.mamba.mamba_ssm.modules.mamba2 import Mamba2
     MAMBA2_AVAIL = True
-except ImportError:
+except ImportError as e:
     print('Warning: mamba2 not installed.')
-    print(ImportError.msg)
+    print(f"{e}")
     MAMBA2_AVAIL = False
 
 
