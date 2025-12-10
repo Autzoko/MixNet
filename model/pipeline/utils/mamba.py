@@ -2,6 +2,65 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+try:
+    from packages.mamba.mamba_ssm import Mamba as MambaSSM
+    MAMBA_AVAIL = True
+except ImportError:
+    print('Warning: maba-ssm not installed.')
+    MAMBA_AVAIL = False
+
+
+class OptimizedMambaBlock(nn.Module):
+    def __init__(self, dim, state_dim=16, use_mamba=True):
+        super().__init__()
+        self.dim = dim
+        self.use_mamba = use_mamba and MAMBA_AVAIL
+
+        self.norm = nn.LayerNorm(dim)
+        if self.use_mamba:
+            self.mamba = MambaSSM(
+                d_model=dim,
+                d_state=state_dim,
+                d_conv=4,
+                expand=2
+            )
+        else:
+            self.fallback_conv = nn.Sequential(
+                nn.Conv2d(dim, dim, kernel_size=3, padding=1, groups=dim),
+                nn.Conv2d(dim, dim, kernel_size=1),
+                nn.GELU()
+            )
+
+        self.mlp = nn.Sequential(
+            nn.Linear(dim, dim * 4),
+            nn.GELU(),
+            nn.Linear(dim * 4, dim)
+        )
+        self.norm_mlp = nn.LayerNorm(dim)
+
+
+    def forward(self, x):
+        """
+        x: (B, C, H, W)
+        """
+        B, C, H, W = x.shape
+        identity = x
+
+        if self.use_mamba:
+            x_flat = x.flatten(2).transpose(1, 2)
+            x_flat = x_flat + self.mamba(self.norm(x_flat))
+            x_flat = x_flat + self.mlp(self.norm_mlp(x_flat))
+            x = x_flat.transpose(1, 2).view(B, C, H, W)
+        else:
+            x = x + self.fallback_conv(x)
+            x_flat = x.flatten(2).transpose(1, 2)
+            x_flat = x_flat + self.mlp(self.norm_mlp(x_flat))
+            x = x_flat.transpose(1, 2).view(B, C, H, W)
+
+        return x
+
+
+
 class SimplifiedSSM(nn.Module):
     """
     Simplified State Space Model (SSM) layer for sequence modeling.
@@ -58,41 +117,10 @@ class SimplifiedSSM(nn.Module):
         return y
     
 
-class MambaBlock(nn.Module):
+class MambaBlock(OptimizedMambaBlock):
     """
     Mamba Block based on SSM, support bi-directional context.
     Input: (B, C, H, W)
     Output: (B, C, H, W)
     """
-
-    def __init__(self, dim, state_dim=16):
-        super().__init__()
-        self.dim = dim
-
-        self.norm = nn.LayerNorm(dim)
-        self.ssm = SimplifiedSSM(dim, state_dim)
-
-        self.mlp = nn.Sequential(
-            nn.Linear(dim, dim * 4),
-            nn.GELU(),
-            nn.Linear(dim * 4, dim)
-        )
-        self.norm_mlp = nn.LayerNorm(dim)
-
-    def forward(self, x):
-        """
-        x: (B, C, H, W)
-        """
-        B, C, H, W = x.shape
-
-        identity = x
-
-        x = x.flatten(2).transpose(1, 2)  # (B, H*W, C)
-        x = x + self.ssm(self.norm(x))
-
-        x = x + self.mlp(self.norm_mlp(x))
-
-        x = x.transpose(1, 2).view(B, C, H, W)
-
-        return x
-
+    pass

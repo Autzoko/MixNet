@@ -16,6 +16,8 @@ def dice_coefficient(
 
     dice = (2.0 * intersection + epsilon) / (union + epsilon)
 
+    dice = torch.clamp(dice, 0.0, 1.0)
+
     return dice
 
 def dice_bce_loss(
