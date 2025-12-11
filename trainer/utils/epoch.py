@@ -7,6 +7,8 @@ from tqdm import tqdm
 
 from trainer.loss.ultrasam import UltraSAMLoss
 
+from trainer.utils.dice import dice_coefficient
+
 
 def train_one_epoch(
         model: nn.Module,
@@ -75,6 +77,8 @@ def train_one_epoch(
             pred_iou = None
         
         loss, loss_dict = criterion(logits, masks)
+
+        dice = dice_coefficient(logits, masks)
         
         # ============================================================
         # Backward pass
@@ -96,9 +100,9 @@ def train_one_epoch(
             dice_score = (2.0 * intersection + 1e-6) / (union + 1e-6)
 
         total_loss += loss_dict['total']
-        total_dice_loss += loss_dict['dice']
-        total_focal_loss += loss_dict['focal']
-        total_iou_loss += loss_dict['iou']
+        total_dice_loss += dice
+        # total_focal_loss += loss_dict['focal']
+        # total_iou_loss += loss_dict['iou']
         total_seg_loss += loss_dict['seg']
         total_dice_score += dice_score.item()
         num_batches += 1
