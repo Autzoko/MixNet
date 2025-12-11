@@ -8,6 +8,7 @@ from trainer.utils import set_seed, load_checkpoint, save_checkpoint
 from trainer.utils.epoch import train_one_epoch, validate_one_epoch
 
 from trainer.loss.ultrasam import UltraSAMLoss
+from trainer.loss.segmamba import SegMambaLoss
 
 
 def hybridunet_trainer():
@@ -202,14 +203,24 @@ def hybridunet_trainer():
     model.print_model_info()
     
     # ==================== 损失函数 ====================
-    criterion = UltraSAMLoss(
-        lambda_dice=args.lambda_dice,
-        lambda_focal=args.lambda_focal,
-        lambda_iou=args.lambda_iou,
-        dice_epsilon=1e-6,
-        focal_alpha=args.focal_alpha,
-        focal_gamma=args.focal_gamma,
-    ).to(device)
+    # criterion = UltraSAMLoss(
+    #     lambda_dice=args.lambda_dice,
+    #     lambda_focal=args.lambda_focal,
+    #     lambda_iou=args.lambda_iou,
+    #     dice_epsilon=1e-6,
+    #     focal_alpha=args.focal_alpha,
+    #     focal_gamma=args.focal_gamma,
+    # ).to(device)
+
+    criterion = SegMambaLoss(
+        lambda_seg=1.0,
+        lambda_tversky=0.3,   # 先和 SegMamba 那边保持一致
+        dice_weight=1.0,
+        ce_weight=1.0,
+        alpha=0.7,
+        beta=0.3,
+        gamma=0.75,
+    )
     
     # ==================== 优化器与调度器 ====================
     optimizer = torch.optim.AdamW(
