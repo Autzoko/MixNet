@@ -5,10 +5,12 @@ import torch.nn.functional as F
 from typing import List, Tuple, Optional
 import math
 
-from model.pipeline.utils.mamba import MambaBlock
+from model.pipeline.utils.mamba import MambaBlock, MambaLayer
 from model.pipeline.utils.attention import WindowAttentionBlock
 from model.pipeline.utils.norm import LayerNorm2d
 from model.pipeline.utils.conv import ConvStem, RDCNNBlock
+from model.pipeline.utils.gsc import GSC
+from model.pipeline.utils.mlp import MlpChannel
 
 from model.pipeline.encoder.contrastive_head import GlobalContrastiveHead, LocalContrastiveHead
 
@@ -19,16 +21,37 @@ class MTBlock(nn.Module):
     Output: (B, C, H, W)
     """
 
-    def __init__(self, dim, window_size=8, num_heads=8, state_dim=16):
+    def __init__(self, dim, window_size=8, num_heads=8, state_dim=16, use_mamba=True, use_attn=False, mlp_ratio: float = 2.0):
         super().__init__()
 
-        self.mamba = MambaBlock(dim, state_dim=state_dim)
-        self.window_attn = WindowAttentionBlock(dim, window_size=window_size, num_heads=num_heads)
+        self.use_attn = use_attn
+
+        self.gsc = GSC(dim)
+        self.mamba_layer = MambaLayer(dim, state_dim=state_dim, use_mamba=use_mamba)
+
+        mlp_hidden = int(dim * mlp_ratio)
+        self.mlp = MlpChannel(dim, mlp_hidden)
+        self.mlp_norm = nn.InstanceNorm2d(dim, affine=True)
+        
+        if use_attn:
+            self.window_attn = WindowAttentionBlock(dim, window_size=window_size, num_heads=num_heads)
 
     def forward(self, x):
-        x = self.mamba(x)
-        x = self.window_attn(x)
+        x = self.gsc(x)
+
+        x = self.mamba_layer(x)
+
+        identity = x
+
+        x = self.mlp_norm(x)
+        x = self.mlp(x) + identity
+
+        if self.use_attn:
+            x = self.window_attn(x)
+
+            
         return x
+
     
 
 class DownSampleLayer(nn.Module):

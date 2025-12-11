@@ -200,3 +200,24 @@ class MambaBlock(OptimizedMambaBlock):
     Output: (B, C, H, W)
     """
     pass
+
+
+class MambaLayer(nn.Module):
+    def __init__(self, dim, state_dim=16, use_mamba=True, mamba_version="auto"):
+        super().__init__()
+
+        self.dim = dim
+        self.use_mamba = use_mamba
+
+        self.norm = nn.LayerNorm(dim)
+
+        self.kernel = MambaBlock(dim, state_dim=state_dim, use_mamba=use_mamba, mamba_version=mamba_version)
+
+    def forward(self, x):
+        B, C, H, W = x.shape
+
+        x_res = x
+
+        x = self.kernel(x)
+
+        return x
