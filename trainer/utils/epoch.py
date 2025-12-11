@@ -74,7 +74,7 @@ def train_one_epoch(
             logits = outputs
             pred_iou = None
         
-        loss, loss_dict = criterion(logits, masks, pred_iou)
+        loss, loss_dict = criterion(logits, masks)
         
         # ============================================================
         # Backward pass
