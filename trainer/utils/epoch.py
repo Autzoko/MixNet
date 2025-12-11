@@ -110,7 +110,7 @@ def train_one_epoch(
         pbar.set_postfix({
             'loss': f'{loss_dict["total"]:.4f}',
             'dice': f'{dice_score.item():.4f}',
-            'focal': f'{loss_dict["focal"]:.4f}',
+            # 'focal': f'{loss_dict["focal"]:.4f}',
         })
 
     avg_loss = total_loss / num_batches
@@ -119,8 +119,8 @@ def train_one_epoch(
     loss_components = {
         'total': avg_loss,
         'dice': total_dice_loss / num_batches,
-        'focal': total_focal_loss / num_batches,
-        'iou': total_iou_loss / num_batches,
+        # 'focal': total_focal_loss / num_batches,
+        # 'iou': total_iou_loss / num_batches,
         'seg': total_seg_loss / num_batches,
     }
 
